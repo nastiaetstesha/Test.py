@@ -1,0 +1,25 @@
+import io
+import sys
+from zipfile import ZipFile
+import os
+import pytest
+file = [f for f in os.listdir() if f.endswith('.zip')][0]
+with ZipFile(file, 'r') as zf:
+    l = list()
+    for i in range(0, len(zf.filelist)-1, 2):
+        l.append((zf.filelist[i].filename, zf.filelist[i+1].filename))
+test_fixtures = list()
+for test_file, clue in l:
+    with ZipFile(file, 'r') as zf:
+        test_fixtures.append((zf.read(test_file).decode('utf8'), zf.read(clue).decode('utf8')))
+
+
+@pytest.mark.parametrize('test_input,expected', test_fixtures)
+def test_exec(test_input, expected):
+    old_stdout = sys.stdout
+    new_stdout = io.StringIO()
+    sys.stdout = new_stdout
+    exec('from solution import *\n' + test_input, globals())
+    result = sys.stdout.getvalue().strip()
+    sys.stdout = old_stdout
+    assert result == expected
