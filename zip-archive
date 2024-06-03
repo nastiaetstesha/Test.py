@@ -1,0 +1,45 @@
+class Parametrization(object):
+	""" Deco for pytest parametrizing using zip-archive as a test data"""
+    zip_test_file: ZipFile
+
+    def __init__(self, zip_test_file_path):
+        self.zip_test_file = ZipFile(zip_test_file_path)
+
+    def __call__(self, test_function):
+        arg_values = []
+        ids = []
+        for test_no in [name for name in self.zip_test_file.namelist() if not name.endswith('.clue')]:
+            with (self.zip_test_file.open(f'{test_no}', mode='r') as test_file,
+                  self.zip_test_file.open(f'{test_no}.clue', mode='r') as output_file):
+                arg_values.append((test_file.read().decode('utf-8'),
+                                   output_file.read().decode('utf-8')))
+                ids.append(f'exec({test_no}) vs {test_no}-clue')
+        return pytest.mark.parametrize(argnames=['test_file_code', 'expected_output'],
+                                       argvalues=arg_values,
+                                       ids=ids)(test_function)
+    
+# Usage examples:
+@Parametrization(Path(__file__).parent / 'test_resources/tests_10_3_14.zip')
+def test_task_10_3_14(test_file_code, expected_output):
+    """Test function from module"""
+    check_function_from_module(module='module_10.step_10_3.task_10_3_14',
+                               expected_output=expected_output,
+                               test_file_code=test_file_code)
+    
+@Parametrization(Path(__file__).parent / 'test_resources/tests_3_7_7.zip')
+def test_task_3_7_7(test_file_code, expected_output):
+    """Test the whole module execution"""
+    check_module_execution(module='module_3.step_3_7.task_3_7_7',
+                           expected_output=expected_output,
+                           test_file_code=test_file_code)
+    
+@Parametrization(Path(__file__).parent / 'test_resources/tests_11_5_5.zip')
+def test_task_11_5_5(test_file_code, expected_output):
+    """Specific tests"""
+    from solutions.module_11.step_11_5.task_11_5_5 import regex
+    find = re.findall(regex, test_file_code, )
+    actual_output = ' '.join(map(stringify, find))
+    del regex
+    assert actual_output == expected_output
+    logger.warning('\ntest_file_code:::\n' + str(test_file_code))
+    logger.warning('\nexpected_output:::\n' + str(expected_output))
